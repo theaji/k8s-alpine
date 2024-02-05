@@ -1,0 +1,18 @@
+[master_node]
+control-node01 ansible_host=10.0.0.2
+
+[control_nodes]
+control-node02 ansible_host=10.0.0.3
+
+[worker_nodes]
+worker01 ansible_host=10.0.0.4
+worker02 ansible_host=10.0.0.5
+
+[k8s:children]
+master_node
+control_nodes
+worker_nodes
+
+[all:vars]
+ansible_user=ansible
+ansible_ssh_private_key_file=/home/user/.ssh/ansible

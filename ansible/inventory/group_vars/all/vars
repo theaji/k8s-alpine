@@ -1,0 +1,39 @@
+## DISKS / STORAGE
+mount_point: "/media/storage01"
+
+## DOMAIN
+ca_name: lab-ca # used in roles/k8s-admin/cert-manager.yml to create Root CA
+domain_name: me.local
+domain_org: Me Inc.
+domain_orgunit: Tech
+
+## HELM 
+helm_version: 3.13.3
+helm_dir: "/home/{{ ansible_user }}/k8s/helm"
+ingress_version: 4.9.0
+argo_version: 5.52.1
+metallb_version: 0.13.12
+cert_manager_version: 1.13.3
+
+## KUBERNETES
+
+k8s_version: 1.29.1-r0
+k8s_dir: "/home/{{ ansible_user }}/k8s"
+#currently set to ip of master node but should be changed to load balancer ip
+k8s_loadbalancer: 10.0.0.2
+
+## METALLB
+metallb_range: 10.0.0.20-10.0.0.40
+
+## NFS
+nfs_host: 10.244.0.1
+nfs_share: "{{ mount_point }}/exports"
+
+## NETWORK
+default_interface: eth0
+
+## SHELL
+bin_dir: "/home/{{ ansible_user }}/.local/bin"
+kube_config_new: "/tmp/config.new"
+kube_config: "/home/{{ ansible_user }}/.kube/config"
+shell_env: "/home/{{ ansible_user }}/.bashrc" # in alpine, this would be $HOME/.profile
