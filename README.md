@@ -28,17 +28,12 @@ Before running the Ansible playbooks, ensure that the following prerequisites ar
 - 2x 512GB SSD drives for storing data 
 - [Alpine](https://www.alpinelinux.org/downloads/) v3.19 64-bit OS installed on 1 SD card (cloned to remaining 3 SD cards using [Etcher](https://etcher.balena.io/#download-etcher))
 
-## Contributing
-
-Contributions are welcome! Please follow these guidelines when contributing:
-- Fork the repository and create a new branch for your feature or fix.
-- Write clear commit messages.
-- Submit a pull request with a detailed description of your changes.
 
 ## Repository Structure
 
 - **`ansible/`**: Contains Ansible playbooks and roles for setting up the Kubernetes cluster.
   - **`roles/`**: Directory containing Ansible roles.
+  - **`inventory/`**: Directory containing Ansible inventory.
   - **`k8s-setup.yml`**: Main Ansible playbook.
 - **`scripts/`**: Contains project scripts.
   - **`setup.sh`**: Setup script for installing dependencies.
@@ -46,3 +41,10 @@ Contributions are welcome! Please follow these guidelines when contributing:
 - **`LICENSE`**: License file specifying the project's licensing terms.
 - **`requirements.txt`**: Contains Python dependencies required for the project.
 - **`requirements.yml`**: Contains Ansible collections required for the project.
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines when contributing:
+- Fork the repository and create a new branch for your feature or fix.
+- Write clear commit messages.
+- Submit a pull request with a detailed description of your changes.
