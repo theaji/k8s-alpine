@@ -1,0 +1,30 @@
+---
+- name: Set up Alpine nodes
+  hosts: k8s
+  become: true
+  roles:
+   - alpine_config
+
+- name: Set up first k8s control node
+  hosts: master_node
+  become: true
+  roles:
+   - k8s_master
+
+- name: Set up additional k8s control nodes
+  hosts: control_nodes
+  become: true
+  roles:
+   - k8s_control
+
+- name: Set up k8s worker nodes
+  hosts: worker_nodes
+  become: true
+  roles:
+   - k8s_worker
+
+- name: Add resources to enhance k8s cluster
+  hosts: localhost
+  become: false
+  roles:
+   - k8s_admin
