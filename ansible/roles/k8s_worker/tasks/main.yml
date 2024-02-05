@@ -1,0 +1,3 @@
+---
+- name: Include worker-nodes related tasks
+  ansible.builtin.include_tasks: worker.yml

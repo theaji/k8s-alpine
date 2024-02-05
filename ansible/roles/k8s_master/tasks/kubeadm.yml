@@ -1,0 +1,131 @@
+---
+## Initialize first control-plane node and create scripts to initialize other control-plane and worker nodes
+
+- name: Pull images
+  ansible.builtin.command:
+    cmd: kubeadm config images pull
+  register: kubeadm_images_output
+  changed_when: kubeadm_images_output.changed
+
+- name: Store output
+  ansible.builtin.copy:
+    content: "{{ kubeadm_images_output.stdout }}"
+    dest: /tmp/images-output
+    mode: "0644"
+
+- name: Fetch output
+  ansible.builtin.fetch:
+    src: /tmp/images-output
+    dest: files/images-output
+    flat: true
+
+- name: Initialize Cluster
+  ansible.builtin.shell:
+    cmd: |
+      kubeadm init \
+        --pod-network-cidr=10.244.0.0/16 \
+        --node-name={{ ansible_hostname }} \
+        --control-plane-endpoint={{ k8s_loadbalancer }} \
+        --upload-certs
+        --apiserver-advertise-address={{ hostvars[inventory_hostname]['ansible_' + default_interface]['ipv4']['address'] }}
+  register: kubeadm_result
+  ignore_errors: true
+  changed_when: kubeadm_result.changed
+  failed_when: "'token' not in kubeadm_output.stdout"
+  run_once: true
+  timeout: 300
+
+- name: Store kubeadm output and token
+  ansible.builtin.copy:
+    content: "{{ kubeadm_result.stdout }}"
+    dest: /tmp/lab-join-token
+    mode: "0600"
+
+- name: Retrieve join token to local machine
+  ansible.builtin.fetch:
+    src: /tmp/lab-join-token
+    dest: files/lab-join-token
+    flat: true
+
+- name: Delete token from node
+  ansible.builtin.file:
+    path: /tmp/lab-join-token
+    state: absent
+
+- name: Check if .kube directory exists
+  ansible.builtin.stat:
+    path: "/home/{{ ansible_user }}/.kube"
+  register: kube_dir_info
+
+- name: Create .kube directory
+  when: not kube_dir_info.stat.exists
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    mode: "0700"
+
+- name: Copy kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    remote_src: true
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Retrieve conf file to local machine
+  ansible.builtin.fetch:
+    src: /etc/kubernetes/admin.conf
+    dest: files/admin.conf
+    flat: true
+  run_once: true
+
+- name: Download Flannel configuration
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+    dest: /tmp/flannel.yml
+    mode: "0644"
+  run_once: true
+
+- name: Enable Flannel
+  become: false
+  ansible.builtin.shell:
+    cmd: |
+      kubectl apply -f /tmp/flannel.yml
+  register: flannel_result
+  changed_when: flannel_result.changed
+  run_once: true
+
+- name: Store flannel output
+  ansible.builtin.copy:
+    content: "{{ flannel_result.stdout }}"
+    dest: /tmp/flannel_output.txt
+    mode: "0644"
+  run_once: true
+
+- name: Retrieve flannel output
+  ansible.builtin.fetch:
+    src: /tmp/flannel_output.txt
+    dest: "files/flannel_output-{{ ansible_hostname }}.txt"
+    flat: true
+  run_once: true
+
+
+- name: Create join scripts
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Get tokens
+      ansible.builtin.shell: "awk '/kubeadm join/,/^$/' files/lab-join-token > files/tokens.sh"
+      register: token_result
+      changed_when: token_result.changed
+
+    - name: Create script for control nodes
+      ansible.builtin.shell: "set -o pipefail && cat files/tokens.sh | head -n 3 > files/control.sh"
+      register: control_token_result
+      changed_when: control_token_result.changed
+
+    - name: Create script for worker nodes
+      ansible.builtin.shell: "set -o pipefail && cat files/tokens.sh | tail -n 2 > files/worker.sh"
+      register: worker_token_result
+      changed_when: worker_token_result.changed

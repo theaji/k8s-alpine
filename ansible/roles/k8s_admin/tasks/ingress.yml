@@ -1,0 +1,28 @@
+- name: Install Ingress Controller
+  block:
+
+      - name: Add NGINX Ingress repo
+        ansible.builtin.shell:
+            cmd: helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx && helm repo update
+        register: nginx_repo_result
+        changed_when: nginx_repo_result.changed
+
+      - name: Pull Ingress Controller chart
+        ansible.builtin.shell:
+            cmd: cd "{{ helm_dir }}" && helm pull ingress-nginx/ingress-nginx --untar=true --version "{{ ingress_version }}"
+        ignore_errors: true
+        register: chart_pull_result
+        changed_when: chart_pull_result.changed
+        failed_when: not "'already exists' in chart_pull_result.stdout"
+
+      - name: Install Ingress Controller chart
+        ansible.builtin.command:
+            cmd: helm install ingress-nginx "{{ helm_dir }}/ingress-nginx" --create-namespace --namespace ingress-nginx
+        register: ingress_output_result
+        changed_when: ingress_output_result.changed
+
+      - name: Store Ingress output
+        ansible.builtin.copy:
+            content: "{{ ingress_output_result.stdout }}"
+            dest: files/ingress_output
+            mode: "0644"

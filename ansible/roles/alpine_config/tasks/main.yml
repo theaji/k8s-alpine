@@ -1,0 +1,11 @@
+---
+- name: Include package installation tasks
+  ansible.builtin.include_tasks: packages.yml
+- name: Include storage related tasks
+  ansible.builtin.include_tasks: storage.yml
+# - name: Include log related tasks
+#  ansible.builtin. include_tasks: logs.yml
+- name: Include k8s related tasks
+  ansible.builtin.include_tasks: k8s-prep.yml
+- name: Include nfs related tasks
+  ansible.builtin.include_tasks: nfs-config.yml

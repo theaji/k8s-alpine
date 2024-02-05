@@ -1,0 +1,28 @@
+---
+## These tasks can be used to format and provision a new external drive. Simply uncomment the lines as required.
+- name: Create Mount point
+  ansible.builtin.file:
+    path: "{{ mount_point }}"
+    state: directory
+    mode: '0755'
+
+# - name: Wipe disk
+#  ansible.builtin.shell:
+#    cmd: wipefs -a "{{ disk }}"
+
+# - name: Create ext4 filesystem
+#  community.general.filesystem:
+#    fstype: ext4
+#    dev: "{{ disk }}"
+#    force: yes
+
+# - name: Mount filesystem
+#  ansible.posix.mount:
+#     path: "{{ mount_point }}"
+#     src: UUID={{ disk_uuid }}
+#     fstype: ext4
+#     opts: noatime
+#     state: present
+
+# - name: Mount drives
+#  ansible.builtin.command: mount -a

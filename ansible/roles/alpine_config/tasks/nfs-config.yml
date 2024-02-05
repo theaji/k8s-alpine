@@ -1,0 +1,47 @@
+---
+# These tasks create an NFS server on nodes under "control_nodes" group. Adjust as required.
+
+- name: Install nfs package
+  when: "'Alpine' in ansible_distribution"
+  ansible.builtin.package:
+    name: nfs-utils
+    state: installed
+
+- name: Create mount point
+  when: "'control_nodes' in group_names"
+  ansible.builtin.file:
+    path: "{{ nfs_share }}"
+    state: directory
+    mode: "0777"
+
+- name: Enable nfs service
+  when: "'control_nodes' in group_names"
+  ansible.builtin.service:
+    name: nfs
+    state: started
+    enabled: true
+
+- name: Enable nfsmount service
+  when: "'k8s' in group_names"
+  ansible.builtin.service:
+    name: nfsmount
+    state: started
+    enabled: true
+
+- name: Update /etc/exports
+  when: "'control_nodes' in group_names"
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    regexp: "^{{ nfs_share }} {{ nfs_host }}(rw,all_squash,insecure,async,no_subtree_check,no_root_squash,anonuid=65534,anongid=65534\\)$"
+    line: "{{ nfs_share }} {{ nfs_host }}(rw,all_squash,insecure,async,no_subtree_check,no_root_squash,anonuid=65534,anongid=65534)"
+    state: present
+
+- name: Restart nfs service
+  when: "'control_nodes' in group_names"
+  register: result
+  retries: 3
+  until: result is succeeded
+  delay: 10
+  ansible.builtin.service:
+    name: nfs
+    state: restarted

@@ -1,0 +1,42 @@
+- name: Check if Helm is installed
+  ansible.builtin.command: helm
+  register: helm_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Install helm if not installed
+  when: helm_installed.rc != 0
+  block:
+
+    - name: Retrieve architecture using uname
+      ansible.builtin.command: uname -m
+      register: architecture_output
+      changed_when: false
+
+    - name: Process architecture value
+      ansible.builtin.set_fact:
+        architecture_map:
+          x86_64: amd64
+          aarch64: arm64
+
+    - name: Set node architecture
+      ansible.builtin.set_fact:
+        node_architecture: "{{ architecture_map[architecture_output.stdout] }}"
+
+    - name: Download Helm script
+      ansible.builtin.unarchive:
+        src: https://get.helm.sh/helm-v{{ helm_version }}-linux-{{ node_architecture }}.tar.gz
+        remote_src: true
+        dest: /tmp
+
+    - name: Move helm binary to bin directory
+      ansible.builtin.copy:
+        src: "/tmp/linux-{{ node_architecture }}/helm"
+        dest: "{{ bin_dir }}"
+        mode: '0700'
+
+    - name: Add environment variable for kubeconfig
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        regexp: '^export KUBECONFIG=\$HOME/\.kube/config$'
+        line: "export KUBECONFIG=$HOME/.kube/config"

@@ -1,0 +1,41 @@
+---
+## Join worker  nodes to the cluster using script created in k8s-master role
+- name: Check for token script
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: files/worker.sh
+  register: worker_script
+  failed_when: not worker_script.stat.exists
+
+- name: Join node to kubernetes cluster
+  ansible.builtin.script: files/worker.sh
+  when: "'worker_nodes' in group_names"
+  register: worker_join_output
+  timeout: 300
+
+- name: Copy worker join output
+  ansible.builtin.copy:
+    content: "{{  worker_join_output.stdout }}"
+    dest: /tmp/worker_join_output-{{ ansible_hostname }}
+    mode: "0644"
+
+- name: Fetch worker join output
+  ansible.builtin.fetch:
+    src: /tmp/worker_join_output-{{ ansible_hostname }}
+    dest: files/worker_join_output-{{ ansible_hostname }}
+    flat: true
+
+- name: Label worker nodes
+  become: false
+  delegate_to: localhost
+  ansible.builtin.command: kubectl label nodes "{{ ansible_hostname }}" kubernetes.io/role=worker
+  register: label_result
+  changed_when: label_result.changed
+
+- name: Label worker nodes
+  become: false
+  delegate_to: localhost
+  ansible.builtin.command: kubectl label nodes "{{ ansible_hostname }}" node-type=worker
+  register: label_b_result
+  changed_when: label_b_result.changed

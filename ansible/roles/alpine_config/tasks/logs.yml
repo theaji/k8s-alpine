@@ -1,0 +1,27 @@
+## Optional tasks to store logs on an external drive. Commented out in main.yml and will not run by default.
+
+- name: Check if task has been executed
+  ansible.builtin.stat:
+    path: /var/log_backup
+  register: log_backup
+
+- name: Copy /var/log to external drive
+  when: not log_backup.stat.exists
+  ansible.posix.synchronize:
+    src: /var/log
+    dest: "{{ mount_point }}/"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Move original /var/log
+  when: not log_backup.stat.exists
+  ansible.builtin.command: "mv /var/log /var/log_backup"
+  register: log_moved_result
+  changed_when: log_moved_result.changed
+
+- name: Create symlink
+  when: not log_backup.stat.exists
+  ansible.builtin.file:
+    src: "{{ mount_point }}/log"
+    dest: /var/log
+    state: link
+    force: true

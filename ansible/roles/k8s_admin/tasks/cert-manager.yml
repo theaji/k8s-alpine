@@ -1,0 +1,74 @@
+- name: Install cert-manager
+  block:
+      - name: Create values file
+        ansible.builtin.copy:
+            dest: "{{ helm_dir }}/cert-manager-values.yml"
+            mode: "0644"
+            content: |
+                installCRDs: true
+                startupapicheck:
+                  timeout: 5m
+
+      - name: Add cert-manager repo
+        ansible.builtin.shell:
+            cmd: helm repo add cert-manager https://charts.jetstack.io && helm repo update
+        register: cert_repo_result
+        changed_when: cert_repo_result.changed
+
+      - name: Pull cert-manager chart
+        ansible.builtin.shell:
+            cmd: cd "{{ helm_dir }}" && helm pull cert-manager/cert-manager --version "cert_manager_version" --untar=true
+        register: cert_chart_result
+        changed_when: cert_chart_result.changed
+
+      - name: Install cert-manager chart
+        ansible.builtin.command:
+            cmd: helm install cert-manager "{{ helm_dir }}/cert-manager" -f "{{ helm_dir }}/cert-manager-values.yml" --create-namespace --namespace cert-manager
+        register: cert_install_result
+        changed_when: cert_install_result.changed
+
+      - name: Create private PKI
+        ansible.builtin.copy:
+            dest: "{{ helm_dir }}/ca.yml"
+            mode: "0600"
+            content: |
+              # For signing CA certs
+              apiVersion: cert-manager.io/v1
+              kind: Issuer
+              metadata:
+                name: selfsigned-issuer
+                namespace: cert-manager
+              spec:
+                selfSigned: {}
+              ---
+              # Create root CA certs. Private key should be in cert-manager ns
+              apiVersion: cert-manager.io/v1
+              kind: Certificate
+              metadata:
+                name: "{{ ca_name }}"
+                namespace: cert-manager
+              spec:
+                isCA: true
+                commonName: "{{ ca_name }}"
+                subject:
+                  organizations:
+                    - "{{ domain_org }}"
+                  organzationalUnits:
+                    - "{{ domain_orgunit }}"
+                secretName: "{{ ca_name }}"-secret
+                privateKey:
+                  algorithm: ECDSA
+                  size: 256
+                issuerRef:
+                  name: selfsigned-issuer
+                  kind: Issuer
+                  group: cert-manager.io
+              ---
+              # For signing cert requests to CA
+              apiVersion: cert-manager.io/v1
+              kind: ClusterIssuer
+              metadata:
+                name: "{{ ca_name }}"-issuer
+              spec:
+                ca:
+                  secretName: "{{ ca_name }}"-secret

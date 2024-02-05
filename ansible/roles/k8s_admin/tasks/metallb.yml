@@ -1,0 +1,57 @@
+---
+- name: Install MetalLB
+  block:
+      - name: Add repo
+        ansible.builtin.shell:
+            cmd: helm repo add metallb https://metallb.github.io/metallb && helm repo update
+        register: repoadd_result
+        changed_when: repoadd_result.changed
+
+      - name: Pull chart
+        ansible.builtin.shell:
+            cmd: cd "{{ helm_dir }}" && helm pull metallb metallb/metallb  --untar=true --version {{ metallb_version }}
+        ignore_errors: true
+        register: chart_pull
+        changed_when: chart_pull.changed
+        failed_when: not "'already exists' in chart_pull.stdout"
+
+      - name: Install chart
+        ansible.builtin.command:
+            cmd: helm install metallb "{{ helm_dir }}/metallb" --create-namespace --namespace metallb-system
+        register: metallb_result
+        changed_when: metallb_result.changed
+
+      - name: Store output
+        ansible.builtin.copy:
+            content: "{{ metallb_result.stdout }}"
+            dest: files/metallb_output
+            mode: "0644"
+
+      - name: Create metallb-config
+        ansible.builtin.copy:
+            dest: "{{ helm_dir }}/metallb-config.yml"
+            mode: "0644"
+            content: |
+              apiVersion: metallb.io/v1beta1
+              kind: IPAddressPool
+              metadata:
+                name: first-pool
+                namespace: metallb-system
+              spec:
+                addresses:
+                - "{{ metallb_range }}"
+              ---
+              apiVersion: metallb.io/v1beta1
+              kind: L2Advertisement
+              metadata:
+                name: default
+                namespace: metallb-system
+              spec:
+                ipAddressPools:
+                - first-pool
+
+      - name: Apply Custom Resource to metallb
+        ansible.builtin.command:
+            cmd: kubectl apply -f "{{ helm_dir }}/metallb-config.yml"
+        register: cr_result
+        changed_when: cr_result.changed

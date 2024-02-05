@@ -1,0 +1,11 @@
+---
+- name: Install helm
+  ansible.builtin.include_tasks: helm.yml
+- name: Install cert-manager
+  ansible.builtin.include_tasks: cert-manager.yml
+- name: Install ingress
+  ansible.builtin.include_tasks: ingress.yml
+- name: Install metallb
+  ansible.builtin.include_tasks: metallb.yml
+- name: Install argocd
+  ansible.builtin.include_tasks: argocd.yml

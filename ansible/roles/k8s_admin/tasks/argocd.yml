@@ -1,0 +1,77 @@
+- name: Install ArgoCD
+  block:
+
+      - name: Create values
+        ansible.builtin.copy:
+            dest: "{{ helm_dir }}/argo-values.yml"
+            mode: "0644"
+            content: |
+              ingress:
+                enabled: true
+                annotations:
+                  nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+                  nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+                  nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+                  cert-manager.io/cluster-issuer: "{{ ca_name }}-issuer"
+                ingressClassName: "nginx"
+                hosts:
+                  - "{{ domain_name }}"
+                tls:
+                  - secretName: argocd-secret
+                    hosts:
+                    - "argocd.{{ domain_name }}"
+                https: true
+
+
+      - name: Add Argo repo
+        ansible.builtin.shell:
+            cmd: helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
+        register: argo_repo_result
+        changed_when: argo_repo_result.changed
+
+      - name: Pull ArgoCD chart
+        ansible.builtin.shell:
+            cmd: cd "{{ helm_dir }}" && helm pull argo/argo-cd --untar=true --version "{{ argo_version }}"
+        ignore_errors: true
+        register: chart_pull_result
+        changed_when: chart_pull_result.changed
+        failed_when: not "'already exists' in chart_pull_result.stdout"
+
+
+      - name: Install ArgoCD chart
+        ansible.builtin.command:
+            cmd: helm install argocd "{{ helm_dir }}/argo-cd"  -f "{{ helm_dir }}/argo-values.yml" --create-namespace --namespace argocd
+        register: argo_output_result
+        changed_when: argo_output_result.changed
+
+      - name: Store ArgoCD output
+        ansible.builtin.copy:
+            content: "{{ argo_output_result.stdout }}"
+            dest: files/argo_output
+            mode: "0644"
+
+- name: Install Argo CLI
+  block:
+      - name: Download binary
+        ansible.builtin.get_url:
+            url: "https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-{{ node_architecture }}"
+            dest: "{{ bin_dir }}/argocd"
+            mode: "0700"
+
+- name: Get ArgoCD default password
+  block:
+      - name: Get default password
+        ansible.builtin.shell:
+            cmd: set -o pipefail && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+        register: argo_password
+        changed_when: false
+
+      - name: Copy ArgoCD password
+        ansible.builtin.copy:
+            content: "{{ argo_password.stdout }}"
+            dest: files/argopasswd.txt
+            mode: "0644"
+
+      - name: Reminder
+        ansible.builtin.debug:
+            msg: "Remember to change your password and delete the admin-secret"

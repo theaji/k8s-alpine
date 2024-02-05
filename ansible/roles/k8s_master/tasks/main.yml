@@ -1,0 +1,5 @@
+---
+- name: Include kubeadm related tasks
+  ansible.builtin.include_tasks: kubeadm.yml
+- name: Include admin related tasks
+  ansible.builtin.include_tasks: admin.yml

@@ -1,0 +1,213 @@
+- name: Check if kubectl is installed on Ansible control node
+  ansible.builtin.command: kubectl
+  register: kubectl_installed
+  ignore_errors: true
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Get current PATH variable
+  ansible.builtin.shell: echo $PATH
+  register: path_var
+  changed_when: false
+
+- name: Check if .local/bin is in PATH
+  ansible.builtin.set_fact:
+    in_path: "{{ ':$HOME/.local/bin:' in ':{{ path_var.stdout }}:' }}"
+
+- name: Install kubectl if not installed
+  when: kubectl_installed.rc != 0
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Retrieve architecture using uname
+      ansible.builtin.command: uname -m
+      register: architecture_output
+      changed_when: false
+
+    - name: Process architecture value
+      ansible.builtin.set_fact:
+        architecture_map:
+          x86_64: amd64
+          aarch64: arm64
+
+    - name: Set node architecture
+      ansible.builtin.set_fact:
+        node_architecture: "{{ architecture_map[architecture_output.stdout] }}"
+
+    - name: Create .local/bin directory
+      ansible.builtin.file:
+        path: $HOME/.local/bin
+        state: directory
+        mode: '0700'
+
+    - name: Download Kubectl script
+      ansible.builtin.get_url:
+        url: https://dl.k8s.io/release/{{ k3s_version }}/bin/linux/{{ node_architecture }}/kubectl
+        dest: /tmp/kubectl
+        mode: '0700'
+
+    - name: Move kubectl binary to .local/bin
+      ansible.builtin.copy:
+        src: /tmp/kubectl
+        dest: $HOME/.local/bin
+        mode: '0700'
+
+    - name: Add .local/bin to PATH if not present
+      when: not in_path
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        line: 'export PATH="$HOME/.local/bin:$PATH"'
+        create: true
+        mode: "0644"
+
+- name: Configure kubeconfig
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: $HOME/.kube
+        state: directory
+        mode: '0700'
+
+    - name: Copy kubeconfig to /tmp
+      ansible.builtin.copy:
+        src: files/admin.conf
+        dest: "{{ kube_config_new }}"
+        mode: '0600'
+
+    - name: Check if kubeconfig exists
+      ansible.builtin.stat:
+        path: "{{ kube_config }}"
+      register: config_info
+
+    - name: Merge with any existing kube config
+      when: config_info.stat.exists
+      block:
+        - name: Read content of config
+          ansible.builtin.slurp:
+            src: "{{ kube_config }}"
+          register: content_config
+
+        - name: Read content of config.new
+          ansible.builtin.slurp:
+            src: "{{ kube_config }}"
+          register: content_config_new
+
+        - name: Combine config contents
+          ansible.builtin.lineinfile:
+            path: "{{ kube_config }}"
+            line: "{{ (content_config.content | b64decode) + (content_config_new.content | b64decode) }}"
+
+    - name: Copy kubeconfig file
+      when: not config_info.stat.exists
+      ansible.builtin.copy:
+        src: "{{ kube_config_new }}"
+        dest: "{{ kube_config }}"
+        mode: '0600'
+
+- name: Check for bash-completion directory
+  ansible.builtin.stat:
+    path: "/etc/bash_completion.d"
+  register: bash_completion_dir
+  delegate_to: localhost
+  become: false
+
+- name: Install bash completion if not installed
+  when: not bash_completion_dir.stat.exists
+  delegate_to: localhost
+  become: true
+  ansible.builtin.package:
+    name: bash-completion
+    state: present
+
+- name: Add k alias and kubectl autocomplete for user
+  when: bash_completion_dir.stat.exists
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Add kubectl autocompletion
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        regexp: '\.\s+<\(kubectl completion bash\)'
+        line: ". <(kubectl completion bash)"
+        create: true
+        mode: "0644"
+
+    - name: Add k alias
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        line: "alias k=kubectl"
+        insertafter: EOF
+
+    - name: Add autocomplete for k alias
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        line: "complete -F __start_kubectl k"
+        insertafter: EOF
+
+- name: Check if Helm is installed
+  ansible.builtin.command: helm
+  register: helm_installed
+  ignore_errors: true
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Install helm if not installed
+  when: helm_installed.rc != 0
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Download Helm script
+      ansible.builtin.unarchive:
+        src: https://get.helm.sh/helm-v{{ helm_version }}-linux-{{ node_architecture }}.tar.gz
+        remote_src: true
+        dest: /tmp
+
+    - name: Move helm binary to .local/bin
+      ansible.builtin.copy:
+        src: "/tmp/linux-{{ node_architecture }}/helm"
+        dest: $HOME/.local/bin
+        mode: '0700'
+
+    - name: Add .local/bin to PATH if not present
+      when: not in_path
+      ansible.builtin.lineinfile:
+        path: "{{ shell_env }}"
+        line: 'export PATH="$HOME/.local/bin:$PATH"'
+
+- name: Add environment variable for kubeconfig
+  delegate_to: localhost
+  become: false
+  ansible.builtin.lineinfile:
+    path: "{{ shell_env }}"
+    regexp: '^export KUBECONFIG=\$HOME/\.kube/config$'
+    line: "export KUBECONFIG=$HOME/.kube/config"
+
+- name: Add environment variable for helm
+  delegate_to: localhost
+  become: false
+  ansible.builtin.lineinfile:
+    path: "{{ shell_env }}"
+    regexp: '^export HELM_CONFIG_HOME=\$HOME/\.config/helm$'
+    line: "export HELM_CONFIG_HOME=$HOME/.config/helm"
+
+- name: Source new environment variables
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell:
+    cmd: source "{{ shell_env }}"
+  args:
+    executable: "{{ ansible_env.SHELL }}"
+  register: env_result
+  changed_when: env_result.changed
+
+- name: Create helm chart directory
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ helm_dir }}"
+    state: directory
+    mode: "0644"

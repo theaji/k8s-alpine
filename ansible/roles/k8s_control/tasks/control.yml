@@ -1,0 +1,49 @@
+---
+## Join another control-plane node to the cluster using script created in k8s-master role
+- name: Check for token script
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: files/control.sh
+  register: control_script
+  failed_when: not control_script.stat.exists
+
+- name: Join node to kubernetes cluster
+  ansible.builtin.script: files/control.sh
+  when: "'control_nodes' in group_names"
+  register: control_join_output
+  timeout: 300
+
+- name: Copy join output
+  ansible.builtin.copy:
+    content: "{{  control_join_output.stdout }}"
+    dest: /tmp/control_join_output-{{ ansible_hostname }}
+    mode: "0644"
+
+- name: Fetch join output
+  ansible.builtin.fetch:
+    src: /tmp/control_join_output-{{ ansible_hostname }}
+    dest: files/control_join_output-{{ ansible_hostname }}
+    flat: true
+
+- name: Check if .kube directory exists
+  ansible.builtin.stat:
+    path: "/home/{{ ansible_user }}/.kube"
+  register: kube_dir_info
+  changed_when: false
+
+- name: Create .kube directory
+  when: not kube_dir_info.stat.exists
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    mode: "0700"
+
+- name: Copy kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    remote_src: true
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"

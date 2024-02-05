@@ -1,0 +1,3 @@
+---
+- name: Include control-node related tasks
+  ansible.builtin.include_tasks: control.yml
