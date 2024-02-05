@@ -8,11 +8,11 @@ This project provides Ansible playbooks and roles to automate the setup of a Kub
 - **Python**: Ensure that Python3 is installed on all target nodes.
 - **Inventory File**: Create an Ansible inventory file containing the details of all target nodes. An example is provided in ansible/inventory/hosts.
 
-- Before running the Ansible playbooks, ensure that the following prerequisites are met:
-- **Ansible**: Install Ansible on the control machine from which you will run the playbooks.
-```bash
-pip install ansible
-```
+Before running the Ansible playbooks, ensure that the following prerequisites are met:
+  - **Ansible**: Install Ansible on the control machine from which you will run the playbooks.
+  ```bash
+  pip install ansible
+  ```
 
 ## Usage
 - Clone the repository: `git clone https://github.com/theaji/k8s-alpine.git`
