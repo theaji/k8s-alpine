@@ -11,7 +11,6 @@
 
  
 DIR="/tmp/k8s-alpine"
-SRC="/tmp/k8s-alpine/setup/bin"
 EXIT_ON_ERROR="true"
 DISTRO=$(cat /etc/*release | grep "^ID=" | sed s/^ID=//g | tr -d '"')
 
@@ -60,6 +59,7 @@ py_check() {
 		exit
 	else
 		echo ""$(python3 --version)" is installed...continuing"
+	        echo "-------"
 		echo
                 venv_check
 	fi
@@ -72,6 +72,7 @@ venv_check() {
     # Attempt to create a virtual environment
     if python3 -m venv "$tmp_dir" >/dev/null 2>&1; then
         echo "python3-venv is installed...continuing"
+	echo "-------"
         rm -rf "$tmp_dir"
         git_check
     else
@@ -91,6 +92,7 @@ git_check() {
 		exit
 	else
 		echo ""$(git --version)" is installed...continuing"
+	        echo "-------"
 		echo
                 setup
 	fi
@@ -104,22 +106,24 @@ setup() {
 if [ -d "$DIR" ] 
 then
 	echo "$DIR already exists....nothing to do"
+	echo "------"
+        echo "Dependencies already installed. Activate virtual environment with: source "$DIR/bin/activate""
 else
-	echo "$DIR does not exist...creating"
-	echo
-        mkdir $DIR
+	echo "$DIR does not exist..."
+	echo "------"
 	echo "creating python virtual environment..."
-	echo
+	echo "-------"
         # Create and activate venv
-	python3 -m venv "$DIR/setup"
-	source "$SRC/activate"
+	python3 -m venv "$DIR"
+	source "$DIR/bin/activate"
         # Upgrade pip
         pip install --upgrade pip
         # Change to root directory 
         cd "$(dirname "$0")/.." || exit
         # Install requirements 
         pip install -r requirements.txt && ansible-galaxy collection install -r requirements.yml
-
+	echo "-------"
+        echo "Successfully installed dependencies. Activate virtual environment with: source "$DIR/bin/activate""
 fi
 
 }
