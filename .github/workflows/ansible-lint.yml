@@ -1,0 +1,27 @@
+name: lint-code 
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ansible/**"
+      - "!**/README.md" # Ignore changes to readme
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "ansible/**"
+      - "!**/README.md" 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint-action@main
+        with:
+          path: "ansible/"
