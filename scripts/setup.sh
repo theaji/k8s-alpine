@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Author: Theo
 # Description: This script creates a virtual environment and installs dependencies for running Ansible tasks
-# Modified: 1/5/23
-# Modification reason: script creation
+# Modified: 1/17/23
+# Modification reason: commented pip upgrade line
 
 
 ######################
@@ -21,6 +21,9 @@ DISTRO=$(cat /etc/*release | grep "^ID=" | sed s/^ID=//g | tr -d '"')
 #########################################
 
 help() {
+  echo
+  echo 
+  echo "This script creates a virtual environment and installs dependencies for running Ansible tasks"
   echo
   echo "Supported cli arguments:"
   echo -e "\t[-h] ->> print this help (optional)"
@@ -116,8 +119,8 @@ else
         # Create and activate venv
 	python3 -m venv "$DIR"
 	source "$DIR/bin/activate"
-        # Upgrade pip
-        pip install --upgrade pip
+        # Upgrade pip (optional)
+#        pip install --upgrade pip
         # Change to root directory 
         cd "$(dirname "$0")/.." || exit
         # Install requirements 
