@@ -17,7 +17,7 @@
 
       - name: Pull cert-manager chart
         ansible.builtin.shell:
-            cmd: cd "{{ helm_dir }}" && helm pull cert-manager/cert-manager --version "cert_manager_version" --untar=true
+            cmd: cd "{{ helm_dir }}" && helm pull cert-manager/cert-manager --version "{{ cert_manager_version }}" --untar=true
         register: cert_chart_result
         changed_when: cert_chart_result.changed
 
@@ -53,9 +53,9 @@
                 subject:
                   organizations:
                     - "{{ domain_org }}"
-                  organzationalUnits:
+                  organizationalUnits:
                     - "{{ domain_orgunit }}"
-                secretName: "{{ ca_name }}"-secret
+                secretName: "{{ ca_name }}-secret"
                 privateKey:
                   algorithm: ECDSA
                   size: 256
@@ -68,7 +68,7 @@
               apiVersion: cert-manager.io/v1
               kind: ClusterIssuer
               metadata:
-                name: "{{ ca_name }}"-issuer
+                name: "{{ ca_name }}-issuer"
               spec:
                 ca:
-                  secretName: "{{ ca_name }}"-secret
+                  secretName: "{{ ca_name }}-secret"

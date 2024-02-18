@@ -15,7 +15,7 @@
                   cert-manager.io/cluster-issuer: "{{ ca_name }}-issuer"
                 ingressClassName: "nginx"
                 hosts:
-                  - "{{ domain_name }}"
+                  - "argocd.{{ domain_name }}"
                 tls:
                   - secretName: argocd-secret
                     hosts:
@@ -52,6 +52,20 @@
 
 - name: Install Argo CLI
   block:
+      - name: Retrieve architecture using uname
+        ansible.builtin.command: uname -m
+        register: architecture_output
+        changed_when: false
+
+      - name: Process architecture value
+        ansible.builtin.set_fact:
+            architecture_map:
+                x86_64: amd64
+                aarch64: arm64
+
+      - name: Set node architecture
+        ansible.builtin.set_fact:
+            node_architecture: "{{ architecture_map[architecture_output.stdout] }}"
       - name: Download binary
         ansible.builtin.get_url:
             url: "https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-{{ node_architecture }}"
@@ -63,6 +77,7 @@
       - name: Get default password
         ansible.builtin.shell:
             cmd: set -o pipefail && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+            executable: /bin/bash
         register: argo_password
         changed_when: false
 

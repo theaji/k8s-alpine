@@ -3,8 +3,8 @@ mount_point: "/media/storage01"
 
 ## DOMAIN
 ca_name: lab-ca # used in roles/k8s-admin/cert-manager.yml to create Root CA
-domain_name: me.local
-domain_org: Me Inc.
+domain_name: corp.local
+domain_org: Corp Inc.
 domain_orgunit: Tech
 
 ## HELM 

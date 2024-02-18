@@ -3,7 +3,7 @@
   block:
       - name: Add repo
         ansible.builtin.shell:
-            cmd: helm repo add metallb https://metallb.github.io/metallb && helm repo update
+            cmd: helm repo add https://metallb.github.io/metallb && helm repo update
         register: repoadd_result
         changed_when: repoadd_result.changed
 
@@ -49,6 +49,11 @@
               spec:
                 ipAddressPools:
                 - first-pool
+
+      - name: Pause for 3 minutes to allow Metallb container to complete creation process
+        ansible.builtin.pause:
+            seconds: 180
+            prompt: "Pausing playbook execution for 3 minutes"
 
       - name: Apply Custom Resource to metallb
         ansible.builtin.command:
