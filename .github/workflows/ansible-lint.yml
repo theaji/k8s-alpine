@@ -6,13 +6,11 @@ on:
       - main
     paths:
       - "ansible/**"
-      - "!**/README.md" # Ignore changes to readme
   pull_request:
     branches:
       - main
     paths:
       - "ansible/**"
-      - "!**/README.md" 
 
 jobs:
   build:
